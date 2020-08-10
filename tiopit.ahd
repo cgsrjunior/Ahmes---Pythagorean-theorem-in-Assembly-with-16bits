@@ -1,0 +1,170 @@
+				org 128
+
+msb_A:			DB
+lsb_A:			DB
+msb_B:			DB
+lsb_B:			DB
+msb_C:			DB
+lsb_C:			DB
+
+temp_msb:		DB
+temp_lsb:		DB
+contador_var:		DB			;;Sera usado pra saber qual variavel vai ser calculada
+
+;;No A² a parte maior sera A,B e a menor C,D
+result_quad_A:		DB
+result_quad_B:		DB
+result_quad_C:		DB
+result_quad_D:		DB
+resultado:		DB
+
+multiplicando_P: 	DB
+multiplicando_Q: 	DB
+multiplicador_R:	DB
+multiplicador_S:	DB
+resultado_T:		DB
+resultado_U:		DB
+resultado_V:		DB
+resultado_W:		DB
+contador_mult:		DB
+constante_0:		DB		0
+constante_1:		DB		1
+constante_2:		DB		2
+constante_3:		DB		3
+constante_4:		DB		4
+constante_16:		DB		8
+constante_128:		DB		128
+
+
+			org 0	
+			
+			;;Na primeira parte irei fazer o A²
+			LDA constante_3
+			STA contador_var	;;inicializa o contador de variaveis
+carrega_a:		LDA msb_A
+			STA multiplicando_P
+			STA multiplicador_R
+			LDA lsb_A
+			STA multiplicando_Q
+			STA multiplicador_S		;;Aqui preparamos os operandos da primeira mult pra ser A * A
+			JMP prep_mult
+			;;Area para fazer B * B
+carrega_b:		LDA msb_B
+			STA multiplicando_P
+			STA multiplicador_R
+			LDA lsb_B
+			STA multiplicando_Q
+			STA multiplicador_S		;;Aqui preparamos os operandos da primeira mult pra ser B * B
+			JMP prep_mult			
+			;;Area para fazer C	* C
+carrega_c:		LDA msb_c
+			STA multiplicando_P
+			STA multiplicador_R
+			LDA lsb_c
+			STA multiplicando_Q
+			STA multiplicador_S		;;Aqui preparamos os operandos da primeira mult pra ser C * C
+
+
+prep_mult:
+			;;Inicio: i <- 'n', T,U <-0, V,W <- R,S
+			LDA constante_16
+			STA contador_mult		;;Carrega o tamanho dos bits a serem multiplicados
+			LDA 0
+			STA resultado_T
+			STA resultado_U
+			LDA multiplicador_R
+			STA resultado_V
+			LDA multiplicador_S
+			STA resultado_W
+inicio_mult:			
+			LDA resultado_V			;;Aqui comecamos a multiplicacao
+			SHR
+			STA resultado_V
+			LDA resultado_W
+			JNC desloca_W
+			OR constante_128		;;Forma de fazer o carry ir para parte menor
+desloca_W:
+			SHR
+			STA resultado_W
+			LDA resultado_T
+			JNC deslocamento					;;Se carry=1 entao tem que fazer a soma parcial(T,U <- T,U + P,Q)
+			ADD multiplicando_P
+			STA resultado_T
+			LDA resultado_U
+			ADD multiplicando_Q
+			STA resultado_U
+			LDA resultado_T
+deslocamento:		ROR
+			STA resultado_T
+			LDA resultado_U
+			JNC rotaciona_U				;; Se carry=0 , logo os bits de U estao ok
+			OR constante_128			;; Passa o carry para o bit mais a esquerda
+rotaciona_U:
+			ROR
+			STA resultado_U
+			LDA resultado_V
+			JNC	decrementa_contador						;;Se carry=0 bits de V estao Ok
+			OR constante_128							;;Passa o carry para o bit mais a esquerda
+			STA resultado_V
+decrementa_contador:
+			LDA contador_mult
+			SUB constante_1
+			STA contador_mult
+			JNZ inicio_mult
+			
+			
+  
+			;;Aqui iremos ver o que sera feito com o resultado T,U,V,W
+check_a:
+			LDA contador_var
+			SUB constante_3
+			JNZ sub_b_or_c			;;Se der zero, devemos salvar o A²
+			jmp pula_dados
+
+			org 158
+
+pula_dados:
+
+			LDA contador_var
+			SUB constante_1
+			STA contador_var		;;Aqui meu contador tem 1 para a proxima passada no laco
+			LDA resultado_T
+			STA result_quad_A
+			LDA resultado_U
+			STA result_quad_B
+			LDA resultado_V
+			STA result_quad_C
+			LDA resultado_W
+			STA result_quad_D
+			JMP carrega_b
+sub_b_or_c:
+			LDA result_quad_A
+			SUB resultado_T
+			STA result_quad_A
+			LDA result_quad_B
+			SUB resultado_U
+			STA result_quad_B
+			LDA result_quad_C
+			SUB resultado_V
+			STA result_quad_C
+			LDA result_quad_D
+			SUB resultado_W
+			STA result_quad_D
+			LDA contador_var
+			SUB constante_1
+			STA contador_var
+			JNZ carrega_c				;;Se constante_var for zero, significa que vc nao precisa fazer multiplicacao dnv
+			
+checa_pitagoras:
+			LDA result_quad_A
+			OR result_quad_B
+			OR result_quad_C
+			OR result_quad_D
+			JNZ nao_equilatero
+			LDA constante_3
+			STA resultado
+			
+			
+nao_equilatero:
+			LDA constante_4
+			STA resultado
